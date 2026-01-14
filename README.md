@@ -33,6 +33,9 @@ go install github.com/michaelkoro/kubewhy/cmd/kubewhy@latest
 ### Basic Commands
 
 ```bash
+# Test connection to the Kubernetes cluster
+kubewhy check
+
 # Diagnose a specific pod
 kubewhy pod my-failing-pod
 
@@ -63,6 +66,7 @@ kubewhy/
 ├── internal/
 │   ├── cli/
 │   │   ├── root.go          # Root command and global flags
+│   │   ├── check.go         # Cluster connection check
 │   │   └── pod.go           # Pod diagnosis subcommand
 │   └── k8s/
 │       └── client.go        # Kubernetes client wrapper
@@ -76,6 +80,7 @@ This project is under active development. Current status:
 
 - [x] Project structure and CLI framework
 - [x] Kubernetes client wrapper
+- [x] Cluster connection check
 - [ ] Pod analyzer (diagnoses pending, crash loops, image errors)
 - [ ] Output formatter (colored terminal output)
 - [ ] Service analyzer

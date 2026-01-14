@@ -9,6 +9,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -113,5 +114,11 @@ func (c *Client) ListNodes(ctx context.Context) (*corev1.NodeList, error) {
 // Use this for advanced operations not covered by the helper methods.
 func (c *Client) Clientset() *kubernetes.Clientset {
 	return c.clientset
+}
+
+// CheckConnection tests connectivity to the Kubernetes cluster
+// by fetching the server version. Returns the version info on success.
+func (c *Client) CheckConnection(ctx context.Context) (*version.Info, error) {
+	return c.clientset.Discovery().ServerVersion()
 }
 
