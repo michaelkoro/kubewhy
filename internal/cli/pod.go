@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/michaelkoro/kubewhy/internal/analyzer/pod"
 	"github.com/michaelkoro/kubewhy/internal/k8s"
 	"github.com/spf13/cobra"
 )
@@ -61,19 +63,53 @@ func runPodDiagnosis(cmd *cobra.Command, args []string) error {
 		ns = ""
 	}
 
-	// Get pod name if provided
-	var podName string
+	ctx := context.Background()
+	analyzer := pod.NewAnalyzer(client)
+
+	// Mode 1: specific pod name provided
 	if len(args) > 0 {
-		podName = args[0]
+		return diagnoseSinglePod(ctx, analyzer, ns, args[0])
 	}
 
-	// TODO: Implement pod analysis logic
-	// This will be added when the pod-analyzer todo is implemented
-	fmt.Printf("Diagnosing pods in namespace: %q, pod: %q\n", ns, podName)
-	fmt.Println("Pod analysis not yet implemented - coming soon!")
+	// Mode 2: no name — scan all pods in the namespace
+	return diagnoseAllPods(ctx, client, analyzer, ns)
+}
 
-	_ = client // Silence unused variable warning for now
+// diagnoseSinglePod analyzes one pod by name and prints its full diagnosis,
+// including a healthy confirmation when no issues are found.
+func diagnoseSinglePod(ctx context.Context, analyzer *pod.PodAnalyzer, ns, name string) error {
+	diagnosis, err := analyzer.Analyze(ctx, ns, name)
+	if err != nil {
+		return err
+	}
+	fmt.Print(diagnosis.Format())
+	return nil
+}
 
+// diagnoseAllPods fetches every pod in the namespace, analyzes each one, and
+// prints only those with issues. Finishes with an analyzed/issues summary line.
+func diagnoseAllPods(ctx context.Context, client *k8s.Client, analyzer *pod.PodAnalyzer, ns string) error {
+	podList, err := client.ListPods(ctx, ns)
+	if err != nil {
+		return fmt.Errorf("listing pods: %w", err)
+	}
+
+	var issueCount int
+	for i := range podList.Items {
+		p := &podList.Items[i]
+		diagnosis, err := analyzer.Analyze(ctx, p.Namespace, p.Name)
+		if err != nil {
+			fmt.Printf("Warning: could not analyze pod %s/%s: %v\n", p.Namespace, p.Name, err)
+			continue
+		}
+		if !diagnosis.IsHealthy {
+			fmt.Print(diagnosis.Format())
+			fmt.Println()
+			issueCount++
+		}
+	}
+
+	fmt.Printf("Analyzed %d pod(s), %d with issues.\n", len(podList.Items), issueCount)
 	return nil
 }
 

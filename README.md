@@ -58,33 +58,51 @@ kubewhy pod -A
 | `--all-namespaces` | `-A` | Search across all namespaces |
 | `--help` | `-h` | Show help for any command |
 
+## Testing
+
+### Integration tests
+
+Integration tests deploy deliberately broken pods to a live cluster and verify that the analyzer diagnoses each failure correctly. They require a running Kubernetes cluster — a local [k3d](https://k3d.io) cluster works well.
+
+The tests are gated behind the `integration` build tag so they never run during a normal `go test ./...`.
+
+```bash
+# Run all integration tests (all resource types)
+go test -v -tags integration ./tests/integration/... -timeout 5m
+
+# Run only pod analyzer tests
+go test -v -tags integration ./tests/integration/pod/... -timeout 3m
+
+# Run a single subtest by name
+go test -v -tags integration ./tests/integration/pod/... -timeout 3m -run TestContainerDiagnosis/CrashLoop
+```
+
+Make sure your active kubeconfig context points at the target cluster before running. Each test run creates an isolated `kubewhy-integration-<timestamp>` namespace and deletes it when finished.
+
 ## Project Structure
 
 ```
 kubewhy/
-├── cmd/kubewhy/main.go      # CLI entry point
+├── cmd/kubewhy/main.go          # CLI entry point
 ├── internal/
+│   ├── analyzer/
+│   │   └── pod/                 # Pod failure analyzer
+│   │       ├── analyzer.go      # Orchestrates all checks
+│   │       ├── container.go     # Image pull, crash loop, OOMKilled, runtime errors
+│   │       └── result.go        # DiagnosisResult and PodDiagnosis types
 │   ├── cli/
-│   │   ├── root.go          # Root command and global flags
-│   │   ├── check.go         # Cluster connection check
-│   │   └── pod.go           # Pod diagnosis subcommand
+│   │   ├── root.go              # Root command and global flags
+│   │   ├── check.go             # Cluster connection check
+│   │   └── pod.go               # Pod diagnosis subcommand
 │   └── k8s/
-│       └── client.go        # Kubernetes client wrapper
+│       └── client.go            # Kubernetes client wrapper
+├── tests/
+│   └── integration/
+│       ├── framework/           # Shared test infrastructure (Env, WaitFor)
+│       └── pod/                 # Pod analyzer integration tests
 ├── go.mod
 └── README.md
 ```
-
-## Development Status
-
-This project is under active development. Current status:
-
-- [x] Project structure and CLI framework
-- [x] Kubernetes client wrapper
-- [x] Cluster connection check
-- [ ] Pod analyzer (diagnoses pending, crash loops, image errors)
-- [ ] Output formatter (colored terminal output)
-- [ ] Service analyzer
-- [ ] Ingress analyzer
 
 ## Contributing
 
