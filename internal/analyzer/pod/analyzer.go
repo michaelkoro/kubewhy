@@ -51,9 +51,9 @@ func (a *PodAnalyzer) Analyze(ctx context.Context, namespace, podName string) (*
 // image pull) are checked first so they appear at the top of the output.
 func (a *PodAnalyzer) runChecks(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
 	checkers := []func(*corev1.Pod, *corev1.EventList) []DiagnosisResult{
-		//checkPending,       // pending.go   — scheduling failures
+		checkPending,        // pending.go   — scheduling failures
 		checkContainers,    // container.go — image pull, crash loop, OOMKilled, runtime errors
-		//checkInitContainers, // init.go     — init container failures
+		checkInitContainers, // init.go      — init container failures
 		//checkProbes,        // probes.go    — liveness / readiness probe failures
 		//checkConfig,        // config.go    — missing ConfigMap / Secret
 		//checkVolumes,       // volume.go    — PVC and mount issues

@@ -121,6 +121,64 @@ func assertCategory(t *testing.T, podName, wantCategory string) {
 
 }
 
+// waitForUnschedulable blocks until the pod's PodScheduled condition is False,
+// indicating the scheduler was unable to place it on any node.
+func waitForUnschedulable(t *testing.T, podName string, timeout time.Duration) {
+	t.Helper()
+	pod := framework.WaitFor(t, timeout,
+		func(ctx context.Context) (*corev1.Pod, error) {
+			return clientset.CoreV1().Pods(env.Namespace).Get(ctx, podName, metav1.GetOptions{})
+		},
+		func(p *corev1.Pod) bool {
+			for _, cond := range p.Status.Conditions {
+				if cond.Type == corev1.PodScheduled && cond.Status == corev1.ConditionFalse {
+					return true
+				}
+			}
+			return false
+		},
+		func(p *corev1.Pod) string {
+			for _, cond := range p.Status.Conditions {
+				if cond.Type == corev1.PodScheduled {
+					return fmt.Sprintf("phase=%s PodScheduled=%s: %s", p.Status.Phase, cond.Status, cond.Message)
+				}
+			}
+			return fmt.Sprintf("phase=%s, no PodScheduled condition yet", p.Status.Phase)
+		},
+	)
+	if pod != nil {
+		for _, cond := range pod.Status.Conditions {
+			if cond.Type == corev1.PodScheduled {
+				tLog(t, "scheduling condition: %s — %s", cond.Status, cond.Message)
+				return
+			}
+		}
+	}
+}
+
+// waitForInitContainerWaitingReason blocks until any init container in the pod
+// has the given waiting reason (e.g. "ImagePullBackOff", "CrashLoopBackOff").
+func waitForInitContainerWaitingReason(t *testing.T, podName, reason string, timeout time.Duration) {
+	t.Helper()
+	pod := framework.WaitFor(t, timeout,
+		func(ctx context.Context) (*corev1.Pod, error) {
+			return clientset.CoreV1().Pods(env.Namespace).Get(ctx, podName, metav1.GetOptions{})
+		},
+		func(p *corev1.Pod) bool {
+			for _, cs := range p.Status.InitContainerStatuses {
+				if cs.State.Waiting != nil && cs.State.Waiting.Reason == reason {
+					return true
+				}
+			}
+			return false
+		},
+		describeInitPod,
+	)
+	if pod != nil {
+		tLog(t, "pod init container status: %s", describeInitPod(pod))
+	}
+}
+
 // describePod formats all container states into a single log-friendly string,
 // e.g.: bad-entrypoint→Terminated(StartError,exit=128) | app→Waiting(ImagePullBackOff)
 func describePod(p *corev1.Pod) string {
@@ -129,6 +187,29 @@ func describePod(p *corev1.Pod) string {
 	}
 	parts := make([]string, 0, len(p.Status.ContainerStatuses))
 	for _, cs := range p.Status.ContainerStatuses {
+		switch {
+		case cs.State.Waiting != nil:
+			parts = append(parts, fmt.Sprintf("%s→Waiting(%s)", cs.Name, cs.State.Waiting.Reason))
+		case cs.State.Running != nil:
+			parts = append(parts, fmt.Sprintf("%s→Running", cs.Name))
+		case cs.State.Terminated != nil:
+			t := cs.State.Terminated
+			parts = append(parts, fmt.Sprintf("%s→Terminated(%s,exit=%d)", cs.Name, t.Reason, t.ExitCode))
+		default:
+			parts = append(parts, fmt.Sprintf("%s→Unknown", cs.Name))
+		}
+	}
+	return strings.Join(parts, " | ")
+}
+
+// describeInitPod formats all init container states into a single log-friendly
+// string, e.g.: init→Waiting(CrashLoopBackOff) | setup→Terminated(Error,exit=1)
+func describeInitPod(p *corev1.Pod) string {
+	if len(p.Status.InitContainerStatuses) == 0 {
+		return fmt.Sprintf("phase=%s, no init container statuses yet", p.Status.Phase)
+	}
+	parts := make([]string, 0, len(p.Status.InitContainerStatuses))
+	for _, cs := range p.Status.InitContainerStatuses {
 		switch {
 		case cs.State.Waiting != nil:
 			parts = append(parts, fmt.Sprintf("%s→Waiting(%s)", cs.Name, cs.State.Waiting.Reason))
