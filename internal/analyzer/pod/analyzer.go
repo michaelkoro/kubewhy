@@ -54,7 +54,7 @@ func (a *PodAnalyzer) runChecks(pod *corev1.Pod, events *corev1.EventList) []Dia
 		checkPending,        // pending.go   — scheduling failures
 		checkContainers,    // container.go — image pull, crash loop, OOMKilled, runtime errors
 		checkInitContainers, // init.go      — init container failures
-		//checkProbes,        // probes.go    — liveness / readiness probe failures
+		checkProbes,         // probes.go    — liveness / readiness probe failures
 		//checkConfig,        // config.go    — missing ConfigMap / Secret
 		//checkVolumes,       // volume.go    — PVC and mount issues
 		//checkEviction,      // eviction.go  — node pressure eviction

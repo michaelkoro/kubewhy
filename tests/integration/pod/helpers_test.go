@@ -121,6 +121,60 @@ func assertCategory(t *testing.T, podName, wantCategory string) {
 
 }
 
+// waitForUnhealthyEvent blocks until the Kubernetes API reports at least one
+// Unhealthy event for the named pod (fired when a liveness, readiness, or
+// startup probe fails). It uses the EventList API so it works even when the
+// pod object itself has not yet changed state.
+func waitForUnhealthyEvent(t *testing.T, podName string, timeout time.Duration) {
+	t.Helper()
+	framework.WaitFor(t, timeout,
+		func(ctx context.Context) (*corev1.EventList, error) {
+			return clientset.CoreV1().Events(env.Namespace).List(ctx, metav1.ListOptions{
+				FieldSelector: fmt.Sprintf(
+					"involvedObject.name=%s,involvedObject.namespace=%s,reason=Unhealthy",
+					podName, env.Namespace,
+				),
+			})
+		},
+		func(evs *corev1.EventList) bool {
+			return len(evs.Items) > 0
+		},
+		func(evs *corev1.EventList) string {
+			return fmt.Sprintf("waiting for Unhealthy event for pod %q (%d events so far)", podName, len(evs.Items))
+		},
+	)
+	tLog(t, "pod %q has received an Unhealthy probe event", podName)
+}
+
+// waitForContainersNotReady blocks until the pod is Running and its
+// ContainersReady condition is False, which is the observable state of a
+// failing readiness probe (the container keeps running but receives no traffic).
+func waitForContainersNotReady(t *testing.T, podName string, timeout time.Duration) {
+	t.Helper()
+	pod := framework.WaitFor(t, timeout,
+		func(ctx context.Context) (*corev1.Pod, error) {
+			return clientset.CoreV1().Pods(env.Namespace).Get(ctx, podName, metav1.GetOptions{})
+		},
+		func(p *corev1.Pod) bool {
+			if p.Status.Phase != corev1.PodRunning {
+				return false
+			}
+			for _, cond := range p.Status.Conditions {
+				if cond.Type == corev1.ContainersReady && cond.Status == corev1.ConditionFalse {
+					return true
+				}
+			}
+			return false
+		},
+		func(p *corev1.Pod) string {
+			return fmt.Sprintf("phase=%s %s", p.Status.Phase, describePod(p))
+		},
+	)
+	if pod != nil {
+		tLog(t, "pod %q is Running with ContainersReady=False", podName)
+	}
+}
+
 // waitForUnschedulable blocks until the pod's PodScheduled condition is False,
 // indicating the scheduler was unable to place it on any node.
 func waitForUnschedulable(t *testing.T, podName string, timeout time.Duration) {

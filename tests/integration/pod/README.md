@@ -29,6 +29,17 @@ from starting, which the analyzer makes explicit in its output.
 | `InitCrashLoop` | Init container runs `exit 1` + `OnFailure` restart policy | `InitCrashLoop` |
 | `InitImagePull` | Init container references `does-not-exist-registry.io/fake-image:missing` | `InitImagePull` |
 
+### `TestProbeDiagnosis` — probe failures
+
+Defined in `probes_test.go`. Each subtest deploys a `busybox sleep 3600` pod
+with a deliberately broken exec probe (`command: ["false"]`) and waits for the
+expected failure state before invoking the analyzer.
+
+| Subtest | How it breaks | Expected category |
+|---|---|---|
+| `LivenessProbe` | Liveness exec probe `["false"]`, `failureThreshold=10` — generates `Unhealthy` events; high threshold prevents the container being killed before analysis | `ProbeFailure` |
+| `ReadinessProbe` | Readiness exec probe `["false"]`, `failureThreshold=1` — pod stays Running with `ContainersReady=False` indefinitely | `ProbeFailure` |
+
 ### `TestPendingDiagnosis` — scheduling failures
 
 Defined in `pending_test.go`. Each subtest deploys a pod that the scheduler
@@ -53,6 +64,7 @@ Run a single suite:
 go test -v -tags integration ./tests/integration/pod/... -timeout 5m -run TestContainerDiagnosis
 go test -v -tags integration ./tests/integration/pod/... -timeout 5m -run TestInitContainerDiagnosis
 go test -v -tags integration ./tests/integration/pod/... -timeout 5m -run TestPendingDiagnosis
+go test -v -tags integration ./tests/integration/pod/... -timeout 5m -run TestProbeDiagnosis
 ```
 
 Run a single case:
@@ -61,4 +73,6 @@ Run a single case:
 go test -v -tags integration ./tests/integration/pod/... -timeout 5m -run TestContainerDiagnosis/CrashLoop
 go test -v -tags integration ./tests/integration/pod/... -timeout 5m -run TestInitContainerDiagnosis/InitCrashLoop
 go test -v -tags integration ./tests/integration/pod/... -timeout 5m -run TestPendingDiagnosis/InsufficientCPU
+go test -v -tags integration ./tests/integration/pod/... -timeout 5m -run TestProbeDiagnosis/LivenessProbe
+go test -v -tags integration ./tests/integration/pod/... -timeout 5m -run TestProbeDiagnosis/ReadinessProbe
 ```
