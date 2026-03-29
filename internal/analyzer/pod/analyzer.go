@@ -55,10 +55,10 @@ func (a *PodAnalyzer) runChecks(pod *corev1.Pod, events *corev1.EventList) []Dia
 		checkContainers,    // container.go — image pull, crash loop, OOMKilled, runtime errors
 		checkInitContainers, // init.go      — init container failures
 		checkProbes,         // probes.go    — liveness / readiness probe failures
-		//checkConfig,        // config.go    — missing ConfigMap / Secret
-		//checkVolumes,       // volume.go    — PVC and mount issues
-		//checkEviction,      // eviction.go  — node pressure eviction
-		//checkTerminating,   // terminating.go — stuck Terminating pods
+		checkConfig,         // config.go    — missing ConfigMap / Secret
+		checkVolumes,        // volume.go    — PVC and mount issues
+		checkEviction,       // eviction.go  — node pressure eviction
+		checkTerminating,    // terminating.go — stuck Terminating pods
 	}
 
 	var issues []DiagnosisResult

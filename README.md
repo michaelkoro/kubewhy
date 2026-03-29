@@ -88,8 +88,16 @@ kubewhy/
 │   ├── analyzer/
 │   │   └── pod/                 # Pod failure analyzer
 │   │       ├── analyzer.go      # Orchestrates all checks
-│   │       ├── container.go     # Image pull, crash loop, OOMKilled, runtime errors
-│   │       └── result.go        # DiagnosisResult and PodDiagnosis types
+│   │       ├── checks.go        # Shared container-status checks (image pull, crash loop, OOM, runtime)
+│   │       ├── config.go        # Missing ConfigMap / Secret detection
+│   │       ├── container.go     # Regular container check dispatcher
+│   │       ├── eviction.go      # Node pressure eviction detection
+│   │       ├── init.go          # Init container failure detection
+│   │       ├── pending.go       # Scheduling failure detection
+│   │       ├── probes.go        # Liveness / readiness probe failure detection
+│   │       ├── result.go        # DiagnosisResult and PodDiagnosis types
+│   │       ├── terminating.go   # Stuck Terminating pod detection
+│   │       └── volume.go        # PVC and mount issue detection
 │   ├── cli/
 │   │   ├── root.go              # Root command and global flags
 │   │   ├── check.go             # Cluster connection check
@@ -99,7 +107,20 @@ kubewhy/
 ├── tests/
 │   └── integration/
 │       ├── framework/           # Shared test infrastructure (Env, WaitFor)
+│       │   ├── client.go        # Clientset and K8sClient constructors
+│       │   ├── namespace.go     # Env: isolated namespace per test run
+│       │   └── wait.go          # Generic WaitFor polling helper
 │       └── pod/                 # Pod analyzer integration tests
+│           ├── config_test.go   # Missing ConfigMap / Secret tests
+│           ├── container_test.go# Image pull, crash loop, OOM, runtime tests
+│           ├── eviction_test.go # Eviction (status-patched) tests
+│           ├── helpers_test.go  # Shared deploy / wait / assert helpers
+│           ├── init_test.go     # Init container failure tests
+│           ├── pending_test.go  # Scheduling failure tests
+│           ├── probes_test.go   # Probe failure tests
+│           ├── setup_test.go    # TestMain — namespace and client setup
+│           ├── terminating_test.go # Stuck Terminating tests
+│           └── volume_test.go   # PVC / mount failure tests
 ├── go.mod
 └── README.md
 ```

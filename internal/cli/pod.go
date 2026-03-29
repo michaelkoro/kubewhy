@@ -20,8 +20,14 @@ The command checks for common problems including:
   - Scheduling failures (insufficient resources, taints, affinity)
   - Image pull errors (wrong image name, registry auth issues)
   - Crash loops (application crashes, misconfiguration)
+  - OOMKilled (container exceeded memory limit)
+  - Runtime errors (missing entrypoint, security context violations)
+  - Init container failures (any of the above in init containers)
+  - Probe failures (liveness and readiness probe issues)
   - Config errors (missing ConfigMaps or Secrets)
   - Volume issues (unbound PVCs, mount failures)
+  - Eviction (node pressure — disk, memory, PID)
+  - Stuck Terminating (finalizers blocking pod deletion)
 
 Examples:
   # Diagnose a specific pod

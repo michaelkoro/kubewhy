@@ -233,6 +233,66 @@ func waitForInitContainerWaitingReason(t *testing.T, podName, reason string, tim
 	}
 }
 
+// waitForPodRunning blocks until the pod reaches the Running phase.
+func waitForPodRunning(t *testing.T, podName string, timeout time.Duration) {
+	t.Helper()
+	pod := framework.WaitFor(t, timeout,
+		func(ctx context.Context) (*corev1.Pod, error) {
+			return clientset.CoreV1().Pods(env.Namespace).Get(ctx, podName, metav1.GetOptions{})
+		},
+		func(p *corev1.Pod) bool {
+			return p.Status.Phase == corev1.PodRunning
+		},
+		func(p *corev1.Pod) string {
+			return fmt.Sprintf("phase=%s", p.Status.Phase)
+		},
+	)
+	if pod != nil {
+		tLog(t, "pod %q is Running", podName)
+	}
+}
+
+// waitForEvent blocks until the Kubernetes API reports at least one event with
+// the given reason for the named pod.
+func waitForEvent(t *testing.T, podName, reason string, timeout time.Duration) {
+	t.Helper()
+	framework.WaitFor(t, timeout,
+		func(ctx context.Context) (*corev1.EventList, error) {
+			return clientset.CoreV1().Events(env.Namespace).List(ctx, metav1.ListOptions{
+				FieldSelector: fmt.Sprintf(
+					"involvedObject.name=%s,involvedObject.namespace=%s,reason=%s",
+					podName, env.Namespace, reason,
+				),
+			})
+		},
+		func(evs *corev1.EventList) bool {
+			return len(evs.Items) > 0
+		},
+		func(evs *corev1.EventList) string {
+			return fmt.Sprintf("waiting for %s event for pod %q (%d events so far)", reason, podName, len(evs.Items))
+		},
+	)
+	tLog(t, "pod %q has received a %s event", podName, reason)
+}
+
+// waitForDeletionTimestamp blocks until the pod has a non-nil DeletionTimestamp,
+// indicating it has been marked for deletion but not yet removed.
+func waitForDeletionTimestamp(t *testing.T, podName string, timeout time.Duration) {
+	t.Helper()
+	framework.WaitFor(t, timeout,
+		func(ctx context.Context) (*corev1.Pod, error) {
+			return clientset.CoreV1().Pods(env.Namespace).Get(ctx, podName, metav1.GetOptions{})
+		},
+		func(p *corev1.Pod) bool {
+			return p.DeletionTimestamp != nil
+		},
+		func(p *corev1.Pod) string {
+			return fmt.Sprintf("phase=%s deletionTimestamp=%v", p.Status.Phase, p.DeletionTimestamp)
+		},
+	)
+	tLog(t, "pod %q has DeletionTimestamp set", podName)
+}
+
 // describePod formats all container states into a single log-friendly string,
 // e.g.: bad-entrypoint→Terminated(StartError,exit=128) | app→Waiting(ImagePullBackOff)
 func describePod(p *corev1.Pod) string {
