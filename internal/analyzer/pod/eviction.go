@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // checkEviction detects pods that were evicted due to node resource pressure
 // (DiskPressure, MemoryPressure, PIDPressure, etc.). Evicted pods have
 // Phase=Failed and Reason="Evicted" with a message describing the pressure.
-func checkEviction(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
+func checkEviction(pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
 	if pod.Status.Phase != corev1.PodFailed || pod.Status.Reason != "Evicted" {
 		return nil
 	}
@@ -24,8 +25,8 @@ func checkEviction(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult 
 		details += "\n  " + hint
 	}
 
-	return []DiagnosisResult{{
-		Severity:   SeverityError,
+	return []framework.DiagnosisResult{{
+		Severity:   framework.SeverityError,
 		Category:   "Eviction",
 		Summary:    fmt.Sprintf("Pod was evicted (%s)", evictionPressure(pod.Status.Message)),
 		Details:    details,

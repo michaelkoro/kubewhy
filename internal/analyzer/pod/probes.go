@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -11,7 +12,7 @@ import (
 // Running pod. It scans Unhealthy events first because liveness probe failures
 // do not set ContainersReady=False — that condition is readiness-only. The
 // condition check is used only as a fallback when events have expired.
-func checkProbes(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
+func checkProbes(pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
 	if pod.Status.Phase != corev1.PodRunning {
 		return nil
 	}
@@ -21,8 +22,8 @@ func checkProbes(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
 	}
 
 	if hasFailingReadyCondition(pod) {
-		return []DiagnosisResult{{
-			Severity: SeverityWarning,
+		return []framework.DiagnosisResult{{
+			Severity: framework.SeverityWarning,
 			Category: "ProbeFailure",
 			Summary:  "Pod is Running but not ready",
 			Details: "The pod phase is Running but the Ready or ContainersReady condition is False.\n" +
@@ -51,15 +52,15 @@ func hasFailingReadyCondition(pod *corev1.Pod) bool {
 
 // probeResultsFromEvents scans the event list for Unhealthy events, parses
 // each into a probe type and container name, deduplicates by (container,
-// probeType), and returns one DiagnosisResult per unique failure.
-func probeResultsFromEvents(events *corev1.EventList) []DiagnosisResult {
+// probeType), and returns one framework.DiagnosisResult per unique failure.
+func probeResultsFromEvents(events *corev1.EventList) []framework.DiagnosisResult {
 	if events == nil {
 		return nil
 	}
 
 	type key struct{ container, probeType string }
 	seen := map[key]bool{}
-	var results []DiagnosisResult
+	var results []framework.DiagnosisResult
 
 	for _, ev := range events.Items {
 		if ev.Reason != "Unhealthy" {
@@ -80,8 +81,8 @@ func probeResultsFromEvents(events *corev1.EventList) []DiagnosisResult {
 
 		switch probeType {
 		case "Liveness":
-			results = append(results, DiagnosisResult{
-				Severity: SeverityError,
+			results = append(results, framework.DiagnosisResult{
+				Severity: framework.SeverityError,
 				Category: "ProbeFailure",
 				Summary:  fmt.Sprintf("Container %q liveness probe is failing", nameLabel),
 				Details: fmt.Sprintf(
@@ -95,8 +96,8 @@ func probeResultsFromEvents(events *corev1.EventList) []DiagnosisResult {
 			})
 
 		case "Readiness":
-			results = append(results, DiagnosisResult{
-				Severity: SeverityWarning,
+			results = append(results, framework.DiagnosisResult{
+				Severity: framework.SeverityWarning,
 				Category: "ProbeFailure",
 				Summary:  fmt.Sprintf("Container %q readiness probe is failing", nameLabel),
 				Details: fmt.Sprintf(
@@ -112,8 +113,8 @@ func probeResultsFromEvents(events *corev1.EventList) []DiagnosisResult {
 
 		default:
 			// Startup probe or unrecognised probe type.
-			results = append(results, DiagnosisResult{
-				Severity: SeverityWarning,
+			results = append(results, framework.DiagnosisResult{
+				Severity: framework.SeverityWarning,
 				Category: "ProbeFailure",
 				Summary:  fmt.Sprintf("Container %q probe is failing (%s)", nameLabel, probeType),
 				Details: fmt.Sprintf(

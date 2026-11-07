@@ -5,13 +5,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // checkTerminating detects pods that are stuck in the Terminating state. A pod
 // is stuck when it has a DeletionTimestamp but has not been removed, typically
 // because a finalizer is blocking deletion.
-func checkTerminating(pod *corev1.Pod, _ *corev1.EventList) []DiagnosisResult {
+func checkTerminating(pod *corev1.Pod, _ *corev1.EventList) []framework.DiagnosisResult {
 	if pod.DeletionTimestamp == nil {
 		return nil
 	}
@@ -38,8 +39,8 @@ func checkTerminating(pod *corev1.Pod, _ *corev1.EventList) []DiagnosisResult {
 		)
 	}
 
-	return []DiagnosisResult{{
-		Severity:   SeverityWarning,
+	return []framework.DiagnosisResult{{
+		Severity:   framework.SeverityWarning,
 		Category:   "StuckTerminating",
 		Summary:    fmt.Sprintf("Pod stuck terminating for %s", stuckFor.Round(time.Second)),
 		Details:    details,

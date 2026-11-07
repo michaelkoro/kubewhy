@@ -3,12 +3,13 @@ package pod
 import (
 	"strings"
 
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // checkPending is the top-level check for scheduling failures. It is a no-op
 // unless the pod is in the Pending phase.
-func checkPending(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
+func checkPending(pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
 	if pod.Status.Phase != corev1.PodPending {
 		return nil
 	}
@@ -16,8 +17,8 @@ func checkPending(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
 }
 
 // checkScheduling looks for a PodScheduled=False condition and returns a
-// DiagnosisResult describing why the pod cannot be placed on any node.
-func checkScheduling(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
+// framework.DiagnosisResult describing why the pod cannot be placed on any node.
+func checkScheduling(pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
 	var schedCond *corev1.PodCondition
 	for i := range pod.Status.Conditions {
 		if pod.Status.Conditions[i].Type == corev1.PodScheduled {
@@ -38,8 +39,8 @@ func checkScheduling(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResul
 		details += "\n  " + hint
 	}
 
-	return []DiagnosisResult{{
-		Severity:   SeverityError,
+	return []framework.DiagnosisResult{{
+		Severity:   framework.SeverityError,
 		Category:   "Scheduling",
 		Summary:    "Pod cannot be scheduled",
 		Details:    details,

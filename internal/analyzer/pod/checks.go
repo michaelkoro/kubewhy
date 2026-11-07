@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -24,7 +25,7 @@ func containerMemoryLimit(containerName string, containers []corev1.Container) s
 }
 
 // checkImagePull detects image pull failures for a single container status.
-func checkImagePull(cs *corev1.ContainerStatus, events *corev1.EventList) []DiagnosisResult {
+func checkImagePull(cs *corev1.ContainerStatus, events *corev1.EventList) []framework.DiagnosisResult {
 	waiting := cs.State.Waiting
 	if waiting == nil {
 		return nil
@@ -55,8 +56,8 @@ func checkImagePull(cs *corev1.ContainerStatus, events *corev1.EventList) []Diag
 			"present on the node. Either pre-pull the image or change the pull policy."
 	}
 
-	return []DiagnosisResult{{
-		Severity:   SeverityError,
+	return []framework.DiagnosisResult{{
+		Severity:   framework.SeverityError,
 		Category:   "ImagePull",
 		Summary:    fmt.Sprintf("Container %q cannot pull image (%s)", cs.Name, waiting.Reason),
 		Details:    details,
@@ -93,7 +94,7 @@ func imagePullEventHint(containerName string, events *corev1.EventList) string {
 
 // checkCrashLoop detects containers stuck in CrashLoopBackOff and surfaces
 // the exit code from the last termination to help narrow down the root cause.
-func checkCrashLoop(cs *corev1.ContainerStatus) []DiagnosisResult {
+func checkCrashLoop(cs *corev1.ContainerStatus) []framework.DiagnosisResult {
 	waiting := cs.State.Waiting
 	if waiting == nil || waiting.Reason != "CrashLoopBackOff" {
 		return nil
@@ -116,8 +117,8 @@ func checkCrashLoop(cs *corev1.ContainerStatus) []DiagnosisResult {
 		}
 	}
 
-	return []DiagnosisResult{{
-		Severity: SeverityError,
+	return []framework.DiagnosisResult{{
+		Severity: framework.SeverityError,
 		Category: "CrashLoop",
 		Summary:  fmt.Sprintf("Container %q is in CrashLoopBackOff (%d restarts)", cs.Name, cs.RestartCount),
 		Details:  details,
@@ -157,7 +158,7 @@ func exitCodeHint(code int32) string {
 // responsible for resolving memLimit from the appropriate container spec slice
 // (pod.Spec.Containers for regular containers, pod.Spec.InitContainers for
 // init containers) using containerMemoryLimit.
-func checkOOMKilled(cs *corev1.ContainerStatus, memLimit string) []DiagnosisResult {
+func checkOOMKilled(cs *corev1.ContainerStatus, memLimit string) []framework.DiagnosisResult {
 	isOOM := func(t *corev1.ContainerStateTerminated) bool {
 		return t != nil && t.Reason == "OOMKilled"
 	}
@@ -173,8 +174,8 @@ func checkOOMKilled(cs *corev1.ContainerStatus, memLimit string) []DiagnosisResu
 		details += "\n  No memory limit is configured — the container consumed too much node memory."
 	}
 
-	return []DiagnosisResult{{
-		Severity: SeverityError,
+	return []framework.DiagnosisResult{{
+		Severity: framework.SeverityError,
 		Category: "OOMKilled",
 		Summary:  fmt.Sprintf("Container %q was OOMKilled (out of memory)", cs.Name),
 		Details:  details,
@@ -190,7 +191,7 @@ func checkOOMKilled(cs *corev1.ContainerStatus, memLimit string) []DiagnosisResu
 //     before the container process is ever launched.
 //   - Terminated{Reason:"StartError"} — set by the container runtime (e.g.
 //     containerd) when exec fails (e.g. binary not found, ENOENT).
-func checkRuntimeError(cs *corev1.ContainerStatus) []DiagnosisResult {
+func checkRuntimeError(cs *corev1.ContainerStatus) []framework.DiagnosisResult {
 	var reason, summary, details, suggestion string
 
 	switch {
@@ -229,8 +230,8 @@ func checkRuntimeError(cs *corev1.ContainerStatus) []DiagnosisResult {
 		return nil
 	}
 
-	return []DiagnosisResult{{
-		Severity:   SeverityError,
+	return []framework.DiagnosisResult{{
+		Severity:   framework.SeverityError,
 		Category:   "RuntimeError",
 		Summary:    summary,
 		Details:    details,

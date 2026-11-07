@@ -1,6 +1,7 @@
 package pod
 
 import (
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -8,8 +9,8 @@ import (
 // issues for image pull errors, crash loops, OOMKilled, and runtime errors.
 // A failing init container prevents all regular containers from starting, which
 // is made explicit in every result's Details field.
-func checkInitContainers(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
-	var results []DiagnosisResult
+func checkInitContainers(pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
+	var results []framework.DiagnosisResult
 
 	for i := range pod.Status.InitContainerStatuses {
 		cs := &pod.Status.InitContainerStatuses[i]
@@ -24,10 +25,10 @@ func checkInitContainers(pod *corev1.Pod, events *corev1.EventList) []DiagnosisR
 // and post-processes every result to:
 //   - prefix the Category with "Init" (e.g. "CrashLoop" → "InitCrashLoop")
 //   - prepend a blocking-note to Details so the output makes the impact clear
-func initResultsFor(cs *corev1.ContainerStatus, pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
+func initResultsFor(cs *corev1.ContainerStatus, pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
 	memLimit := containerMemoryLimit(cs.Name, pod.Spec.InitContainers)
 
-	var raw []DiagnosisResult
+	var raw []framework.DiagnosisResult
 	raw = append(raw, checkImagePull(cs, events)...)
 	raw = append(raw, checkCrashLoop(cs)...)
 	raw = append(raw, checkOOMKilled(cs, memLimit)...)

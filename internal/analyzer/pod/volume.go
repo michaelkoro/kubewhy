@@ -3,19 +3,20 @@ package pod
 import (
 	"strings"
 
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // checkVolumes detects PVC and general volume mount failures by scanning pod
 // events. ConfigMap/Secret mount failures are handled by checkConfig and are
 // explicitly excluded here to avoid duplicate reports.
-func checkVolumes(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
+func checkVolumes(pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
 	if events == nil {
 		return nil
 	}
 
 	seen := map[string]bool{}
-	var results []DiagnosisResult
+	var results []framework.DiagnosisResult
 
 	for _, ev := range events.Items {
 		switch ev.Reason {
@@ -34,8 +35,8 @@ func checkVolumes(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
 		}
 		seen[ev.Message] = true
 
-		results = append(results, DiagnosisResult{
-			Severity:   SeverityError,
+		results = append(results, framework.DiagnosisResult{
+			Severity:   framework.SeverityError,
 			Category:   "VolumeMount",
 			Summary:    "Volume mount or attach failed",
 			Details:    "A volume could not be mounted or attached to the pod.\n  " + ev.Message,

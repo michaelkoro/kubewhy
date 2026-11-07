@@ -1,50 +1,22 @@
 package pod
 
-import "fmt"
+import (
+	"fmt"
 
-// Severity indicates the impact level of a diagnosed issue.
-type Severity int
-
-const (
-	SeverityError   Severity = iota // Pod is broken or cannot start
-	SeverityWarning                 // Pod is degraded but partially functional
-	SeverityInfo                    // Noteworthy but not necessarily a problem
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 )
-
-// String returns the display label for a Severity level.
-func (s Severity) String() string {
-	switch s {
-	case SeverityError:
-		return "ERROR"
-	case SeverityWarning:
-		return "WARNING"
-	case SeverityInfo:
-		return "INFO"
-	default:
-		return "UNKNOWN"
-	}
-}
-
-// DiagnosisResult represents a single diagnosed issue found in a pod.
-type DiagnosisResult struct {
-	Severity   Severity // Error, Warning, or Info
-	Category   string   // e.g. "Scheduling", "ImagePull", "CrashLoop"
-	Summary    string   // One-line explanation shown in the header
-	Details    string   // Extended explanation of the root cause
-	Suggestion string   // Actionable fix recommendation
-}
 
 // PodDiagnosis is the complete analysis result for a single pod.
 type PodDiagnosis struct {
 	PodName   string
 	Namespace string
 	Phase     string
-	Issues    []DiagnosisResult
+	Issues    []framework.DiagnosisResult
 	IsHealthy bool
 }
 
 // hasIssueBySeverity returns true if any diagnosed issue matches the given severity.
-func (d *PodDiagnosis) hasIssueBySeverity(s Severity) bool {
+func (d *PodDiagnosis) hasIssueBySeverity(s framework.Severity) bool {
 	for _, issue := range d.Issues {
 		if issue.Severity == s {
 			return true
@@ -54,10 +26,10 @@ func (d *PodDiagnosis) hasIssueBySeverity(s Severity) bool {
 }
 
 // HasErrors returns true if any diagnosed issue has Error severity.
-func (d *PodDiagnosis) HasErrors() bool { return d.hasIssueBySeverity(SeverityError) }
+func (d *PodDiagnosis) HasErrors() bool { return d.hasIssueBySeverity(framework.SeverityError) }
 
 // HasWarnings returns true if any diagnosed issue has Warning severity.
-func (d *PodDiagnosis) HasWarnings() bool { return d.hasIssueBySeverity(SeverityWarning) }
+func (d *PodDiagnosis) HasWarnings() bool { return d.hasIssueBySeverity(framework.SeverityWarning) }
 
 // Format renders the diagnosis as human-readable plain-English output,
 // matching the output format described in the implementation plan.

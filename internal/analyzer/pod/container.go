@@ -1,6 +1,7 @@
 package pod
 
 import (
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -8,8 +9,8 @@ import (
 // issues for image pull errors, crash loops, OOMKilled, and runtime errors.
 // Init containers are handled separately in init.go.
 // Sub-check logic lives in checks.go and is shared with init container detection.
-func checkContainers(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
-	var results []DiagnosisResult
+func checkContainers(pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
+	var results []framework.DiagnosisResult
 
 	for i := range pod.Status.ContainerStatuses {
 		cs := &pod.Status.ContainerStatuses[i]

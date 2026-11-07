@@ -35,8 +35,8 @@ Examples:
 		}
 
 		fmt.Printf("Connected to Kubernetes cluster\n")
-		fmt.Printf("  Server Version: %s\n", version.GitVersion)
-		fmt.Printf("  Platform: %s\n", version.Platform)
+		fmt.Printf("Server Version: %s\n", version.GitVersion)
+		fmt.Printf("Platform: %s\n", version.Platform)
 		return nil
 	},
 }
@@ -44,4 +44,3 @@ Examples:
 func init() {
 	rootCmd.AddCommand(checkCmd)
 }
-

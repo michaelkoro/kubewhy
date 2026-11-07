@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -13,8 +14,8 @@ import (
 //     valueFrom references a ConfigMap or Secret that does not exist.
 //   - Events with reason "FailedMount" whose message mentions "configmap" or
 //     "secret" — a volume-projected ConfigMap/Secret is missing.
-func checkConfig(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
-	var results []DiagnosisResult
+func checkConfig(pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
+	var results []framework.DiagnosisResult
 	results = append(results, checkConfigEnv(pod)...)
 	results = append(results, checkConfigMount(events)...)
 	return results
@@ -23,8 +24,8 @@ func checkConfig(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
 // checkConfigEnv inspects container statuses for CreateContainerConfigError,
 // which the kubelet sets when an env valueFrom references a missing ConfigMap
 // or Secret key.
-func checkConfigEnv(pod *corev1.Pod) []DiagnosisResult {
-	var results []DiagnosisResult
+func checkConfigEnv(pod *corev1.Pod) []framework.DiagnosisResult {
+	var results []framework.DiagnosisResult
 
 	allStatuses := append(pod.Status.ContainerStatuses, pod.Status.InitContainerStatuses...)
 	for i := range allStatuses {
@@ -38,8 +39,8 @@ func checkConfigEnv(pod *corev1.Pod) []DiagnosisResult {
 			details += "\n  " + cs.State.Waiting.Message
 		}
 
-		results = append(results, DiagnosisResult{
-			Severity: SeverityError,
+		results = append(results, framework.DiagnosisResult{
+			Severity: framework.SeverityError,
 			Category: "ConfigError",
 			Summary:  fmt.Sprintf("Container %q has a missing ConfigMap or Secret reference", cs.Name),
 			Details:  details,
@@ -54,13 +55,13 @@ func checkConfigEnv(pod *corev1.Pod) []DiagnosisResult {
 // checkConfigMount scans events for FailedMount where the message indicates a
 // missing ConfigMap or Secret (as opposed to a PVC, which is handled by
 // checkVolumes).
-func checkConfigMount(events *corev1.EventList) []DiagnosisResult {
+func checkConfigMount(events *corev1.EventList) []framework.DiagnosisResult {
 	if events == nil {
 		return nil
 	}
 
 	seen := map[string]bool{}
-	var results []DiagnosisResult
+	var results []framework.DiagnosisResult
 
 	for _, ev := range events.Items {
 		if ev.Reason != "FailedMount" {
@@ -75,8 +76,8 @@ func checkConfigMount(events *corev1.EventList) []DiagnosisResult {
 		}
 		seen[ev.Message] = true
 
-		results = append(results, DiagnosisResult{
-			Severity: SeverityError,
+		results = append(results, framework.DiagnosisResult{
+			Severity: framework.SeverityError,
 			Category: "ConfigError",
 			Summary:  "Volume mount failed due to missing ConfigMap or Secret",
 			Details:  "A volume-projected ConfigMap or Secret could not be mounted.\n  " + ev.Message,

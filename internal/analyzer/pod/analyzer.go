@@ -6,6 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/michaelkoro/kubewhy/internal/analyzer/framework"
 	"github.com/michaelkoro/kubewhy/internal/k8s"
 )
 
@@ -49,10 +50,10 @@ func (a *PodAnalyzer) Analyze(ctx context.Context, namespace, podName string) (*
 //
 // Order matters: higher-severity / more fundamental problems (scheduling,
 // image pull) are checked first so they appear at the top of the output.
-func (a *PodAnalyzer) runChecks(pod *corev1.Pod, events *corev1.EventList) []DiagnosisResult {
-	checkers := []func(*corev1.Pod, *corev1.EventList) []DiagnosisResult{
+func (a *PodAnalyzer) runChecks(pod *corev1.Pod, events *corev1.EventList) []framework.DiagnosisResult {
+	checkers := []func(*corev1.Pod, *corev1.EventList) []framework.DiagnosisResult{
 		checkPending,        // pending.go   — scheduling failures
-		checkContainers,    // container.go — image pull, crash loop, OOMKilled, runtime errors
+		checkContainers,     // container.go — image pull, crash loop, OOMKilled, runtime errors
 		checkInitContainers, // init.go      — init container failures
 		checkProbes,         // probes.go    — liveness / readiness probe failures
 		checkConfig,         // config.go    — missing ConfigMap / Secret
@@ -61,7 +62,7 @@ func (a *PodAnalyzer) runChecks(pod *corev1.Pod, events *corev1.EventList) []Dia
 		checkTerminating,    // terminating.go — stuck Terminating pods
 	}
 
-	var issues []DiagnosisResult
+	var issues []framework.DiagnosisResult
 	for _, check := range checkers {
 		issues = append(issues, check(pod, events)...)
 	}
